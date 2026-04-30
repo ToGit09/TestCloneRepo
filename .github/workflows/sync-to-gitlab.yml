@@ -1,0 +1,43 @@
+name: Sync GitHub → GitLab
+
+# Triggered on every push to any branch or tag so that all commits
+# made on GitHub are immediately mirrored to the GitLab server.
+on:
+  push:
+    branches:
+      - '**'
+    tags:
+      - '**'
+
+jobs:
+  mirror:
+    name: Mirror to GitLab
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read   # only needs to read the repository to push it elsewhere
+
+    steps:
+      - name: Checkout repository (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history required for --mirror
+
+      - name: Set up SSH key for GitLab
+        run: |
+          mkdir -p ~/.ssh
+          # Create the key file with correct permissions before writing the
+          # secret so it is never briefly world-readable.
+          install -m 600 /dev/null ~/.ssh/id_rsa
+          printf '%s\n' "${{ secrets.GITLAB_SSH_KEY }}" > ~/.ssh/id_rsa
+          # Use a pre-verified known_hosts entry stored as a secret.
+          # To obtain the value, run locally:
+          #   ssh-keyscan -H <GITLAB_HOST>
+          # and store the output as the GITLAB_KNOWN_HOSTS secret.
+          printf '%s\n' "${{ secrets.GITLAB_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
+
+      - name: Push all refs to GitLab
+        run: |
+          git remote add gitlab "git@${{ secrets.GITLAB_HOST }}:${{ secrets.GITLAB_REPO_PATH }}.git"
+          # --mirror pushes every branch and tag and removes refs that no
+          # longer exist on GitHub (true mirror semantics).
+          git push gitlab --mirror
