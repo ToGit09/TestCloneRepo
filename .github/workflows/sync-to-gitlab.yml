@@ -37,6 +37,13 @@ jobs:
       - name: Push all refs to GitLab
         run: |
           git remote add gitlab "git@${{ secrets.GITLAB_HOST }}:${{ secrets.GITLAB_REPO_PATH }}.git"
-          # --mirror pushes every branch and tag and removes refs that no
-          # longer exist on GitHub (true mirror semantics).
-          git push gitlab --mirror
+          # Push only real branches and tags to GitLab.  Using explicit
+          # refspecs instead of --mirror avoids forwarding remote-tracking
+          # refs (refs/remotes/origin/*) that GitLab rejects as hidden refs,
+          # and avoids deletion requests for GitLab's default branch.
+          # --prune preserves mirror semantics by removing refs on GitLab
+          # that no longer exist on GitHub.
+          git push gitlab \
+            '+refs/heads/*:refs/heads/*' \
+            '+refs/tags/*:refs/tags/*' \
+            --prune
