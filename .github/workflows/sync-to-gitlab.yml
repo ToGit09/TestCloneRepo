@@ -29,11 +29,10 @@ jobs:
           # secret so it is never briefly world-readable.
           install -m 600 /dev/null ~/.ssh/id_rsa
           printf '%s\n' "${{ secrets.GITLAB_SSH_KEY }}" > ~/.ssh/id_rsa
-          # Use a pre-verified known_hosts entry stored as a secret.
-          # To obtain the value, run locally:
-          #   ssh-keyscan -H <GITLAB_HOST>
-          # and store the output as the GITLAB_KNOWN_HOSTS secret.
-          printf '%s\n' "${{ secrets.GITLAB_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
+          # Fetch the host key from the GitLab server at runtime.
+          # This avoids the need for a GITLAB_KNOWN_HOSTS secret and works
+          # even when ssh-keyscan on Windows fails due to unsupported KEX methods.
+          ssh-keyscan -H "${{ secrets.GITLAB_HOST }}" >> ~/.ssh/known_hosts
 
       - name: Push all refs to GitLab
         run: |
